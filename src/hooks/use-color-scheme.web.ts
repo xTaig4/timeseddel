@@ -8,6 +8,8 @@ export function useColorScheme() {
   const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
+    // Expo-skabelonens SSR-hydreringsmønster (web-only; appen er Android-first)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasHydrated(true);
   }, []);
 

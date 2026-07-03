@@ -44,7 +44,7 @@ Key decisions:
 ## Roadmap
 
 - [x] Phase 0 — Scaffold: Expo SDK 57 + TypeScript, Sentry wiring, EAS build profiles
-- [ ] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
+- [x] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
 - [ ] Phase 2 — UI polish: Danish UI, design pass, screenshots
 - [ ] Phase 3 — Device build: EAS preview APK, verify Sentry catches a real on-device crash
 - [ ] Phase 4 — AI Q&A: Danish workplace-rights assistant via Mistral edge proxy
@@ -59,8 +59,12 @@ Deliberate scope call, not a gap: this is a personal-device portfolio build, so 
 ```bash
 npm install
 npx expo start        # dev server (storage & UI work in Expo Go; voice needs a dev client)
+npm test              # unit tests (ferielov accrual engine)
 npx tsc --noEmit      # typecheck
+npx expo lint         # eslint
 ```
+
+The vacation accrual engine (`src/domain/accrual.ts`) encodes the current Danish Holiday Act (ferieloven, LBK nr. 152 af 20/02/2024): 2.08 days per employment month with 0.07/day proration for partial months, ferieår 1 Sept–31 Aug, and a full year rounding 24.96 up to the statutory 25. Overtime has no statutory basis in Denmark, so the app reports a neutral, configurable flex balance instead of assuming any overenskomst's rates — the assumptions are documented in the module and surfaced in the UI.
 
 Optional env (see `.env.example`):
 
