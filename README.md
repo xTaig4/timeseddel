@@ -1,56 +1,73 @@
-# Welcome to your Expo app 👋
+# Timeseddel
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Offline-first work-hours & holiday tracker for Danish workers — log hours (manually or by voice), track ferie/overtime accrual, and ask an AI assistant questions about Danish workplace rights.
 
-## Get started
+> **Status: in active development.** Built as a portfolio piece in a deliberately chosen production stack: React Native, Expo, TypeScript, Redux Toolkit, offline SQLite, Sentry.
 
-1. Install dependencies
+<!-- TODO: screenshots / demo GIF here (Phase 2) -->
 
-   ```bash
-   npm install
-   ```
+## Why this app
 
-2. Start the app
+Work hours, holiday accrual, and workplace rights are things every Danish employee deals with — and the data is personal, so it stays **on your device**. No account, no cloud sync, no tracking. The only network call is the (anonymous) AI Q&A, proxied through an edge function so no API key ever ships in the app.
 
-   ```bash
-   npx expo start
-   ```
+## Stack
 
-In the output, you'll find options to open the app in a
+| Layer | Choice |
+|---|---|
+| Framework | React Native 0.86 / Expo SDK 57 (New Architecture) |
+| Language | TypeScript (strict) |
+| State | Redux Toolkit + react-redux |
+| Storage | expo-sqlite + Drizzle ORM (offline source of truth) |
+| Voice input | expo-speech-recognition (on-device STT) |
+| AI Q&A | Mistral (EU data residency) via server-side edge proxy |
+| Error reporting | Sentry (@sentry/react-native) |
+| Build & distribution | EAS Build — installable Android APK |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Architecture
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+[Expo app]  RTK (UI/sync state) + Drizzle/expo-sqlite (offline source of truth)
+     │  voice → expo-speech-recognition (on-device, free)
+     │  HTTPS POST /chat  (no secret in the app)
+     ▼
+[Edge proxy]  holds MISTRAL_API_KEY server-side
+     ▼
+[api.mistral.ai]  EU data residency
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Key decisions:
 
-### Other setup steps
+- **Offline-first.** SQLite is the source of truth; the app is fully functional with no connection.
+- **No API keys in the bundle.** `EXPO_PUBLIC_*` vars are inlined as plaintext — the Mistral key lives only in the edge function.
+- **No user accounts.** Records are local; the AI proxy is rate-limited by an anonymous device token.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Roadmap
 
-## Learn more
+- [x] Phase 0 — Scaffold: Expo SDK 57 + TypeScript, Sentry wiring, EAS build profiles
+- [ ] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
+- [ ] Phase 2 — UI polish: Danish UI, design pass, screenshots
+- [ ] Phase 3 — Device build: EAS preview APK, verify Sentry catches a real on-device crash
+- [ ] Phase 4 — AI Q&A: Danish workplace-rights assistant via Mistral edge proxy
+- [ ] Phase 5 — Voice logging: on-device speech recognition
 
-To learn more about developing your project with Expo, look at the following resources:
+## Why no store listing?
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Deliberate scope call, not a gap: this is a personal-device portfolio build, so it ships as an installable APK via EAS internal distribution (`eas build -p android --profile preview`). Skipping Google Play avoids the closed-testing gate and account overhead for a single-user app; the EAS submit pipeline is the same regardless.
 
-## Join the community
+## Getting started
 
-Join our community of developers creating universal apps.
+```bash
+npm install
+npx expo start        # dev server (storage & UI work in Expo Go; voice needs a dev client)
+npx tsc --noEmit      # typecheck
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Optional env (see `.env.example`):
+
+- `EXPO_PUBLIC_SENTRY_DSN` — enables Sentry; error reporting is disabled when unset.
+
+Android APK build:
+
+```bash
+eas build -p android --profile preview
+```
