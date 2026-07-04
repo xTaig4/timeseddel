@@ -128,6 +128,15 @@ function SettingsForm(props: {
           lovbestemte, men følger af din overenskomst eller kontrakt. Alle data bliver på din
           telefon.
         </ThemedText>
+
+        <Pressable
+          onPress={() => {
+            throw new Error('Testfejl fra Indstillinger — bevidst udløst til fejlrapportering');
+          }}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.testError}>
+            Test fejlrapportering
+          </ThemedText>
+        </Pressable>
       </ScrollView>
     </ThemedView>
   );
@@ -176,4 +185,5 @@ const styles = StyleSheet.create({
   saveButton: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   pressed: { opacity: 0.85 },
   disclaimer: { paddingHorizontal: Spacing.one },
+  testError: { textDecorationLine: 'underline', paddingHorizontal: Spacing.one },
 });
