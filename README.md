@@ -9,6 +9,7 @@ Offline-first work-hours & holiday tracker for Danish workers — log hours (man
     <td><img src="docs/screenshots/timer-light.png" alt="Timer screen: flex balance, ferie accrual, quick log form and entry list" width="260"></td>
     <td><img src="docs/screenshots/indstillinger-light.png" alt="Settings screen: weekly norm, employment date, feriefridage" width="260"></td>
     <td><img src="docs/screenshots/timer-dark.png" alt="Timer screen in dark mode" width="260"></td>
+    <td><img src="docs/screenshots/spoerg.png" alt="Spørg screen: AI assistant answering a question about overtime rules, streamed from the Mistral edge proxy" width="260"></td>
   </tr>
 </table>
 
@@ -53,7 +54,7 @@ Key decisions:
 - [x] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
 - [x] Phase 2 — UI polish: Danish UI, design pass, screenshots
 - [x] Phase 3 — Device build: EAS preview APK, verified Sentry catches a real on-device crash with a source-mapped stack trace (exact file + line)
-- [ ] Phase 4 — AI Q&A: Danish workplace-rights assistant via Mistral edge proxy
+- [x] Phase 4 — AI Q&A: Danish workplace-rights assistant, SSE-streamed through a Supabase edge proxy (server-held Mistral key, per-device daily rate limit, on-topic guardrails)
 - [ ] Phase 5 — Voice logging: on-device speech recognition
 
 ## Why no store listing?
@@ -75,6 +76,17 @@ The vacation accrual engine (`src/domain/accrual.ts`) encodes the current Danish
 Optional env (see `.env.example`):
 
 - `EXPO_PUBLIC_SENTRY_DSN` — enables Sentry; error reporting is disabled when unset.
+- `EXPO_PUBLIC_CHAT_URL` — URL of the deployed edge proxy; the Spørg tab shows a setup notice when unset.
+
+### AI proxy (Supabase edge function)
+
+The `supabase/` directory holds the server side of the Spørg tab: a Deno edge function that validates the request, enforces a per-device daily limit (atomic Postgres upsert), injects the Danish system prompt server-side, and streams Mistral's SSE response straight through. Deploy with:
+
+```bash
+supabase db push                                   # device_usage table + rate-limit RPC
+supabase secrets set MISTRAL_API_KEY=...           # the only secret, never in the app
+supabase functions deploy chat --use-api
+```
 
 Android APK build:
 

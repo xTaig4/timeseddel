@@ -23,9 +23,10 @@ const chatSlice = createSlice({
       state.status = 'streaming';
       state.error = undefined;
     },
-    deltaReceived(state, action: PayloadAction<string>) {
-      const last = state.messages[state.messages.length - 1];
-      if (last?.role === 'assistant') last.content += action.payload;
+    deltaReceived(state, action: PayloadAction<{ index: number; text: string }>) {
+      // målrettet på indeks, så en forældet stream aldrig skriver i en ny boble
+      const target = state.messages[action.payload.index];
+      if (target?.role === 'assistant') target.content += action.payload.text;
     },
     sendFinished(state) {
       state.status = 'idle';

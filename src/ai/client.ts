@@ -61,7 +61,8 @@ export async function streamChat(
     }
     const { done, value } = await reader.read();
     if (done) break;
-    buf += decoder.decode(value, { stream: true });
+    // normalisér CRLF så event-separatoren altid er '\n\n'
+    buf += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
 
     let sep: number;
     while ((sep = buf.indexOf('\n\n')) >= 0) {

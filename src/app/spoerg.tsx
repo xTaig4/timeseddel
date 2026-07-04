@@ -41,16 +41,23 @@ export default function SpoergScreen() {
     if (!question || status === 'streaming') return;
     setInput('');
     const history = [...messages, { role: 'user' as const, content: question }];
+    const assistantIndex = history.length; // sendStarted lægger assistent-boblen her
     dispatch(sendStarted(question));
 
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      await streamChat(history, (delta) => dispatch(deltaReceived(delta)), ac.signal);
+      await streamChat(
+        history,
+        (delta) => dispatch(deltaReceived({ index: assistantIndex, text: delta })),
+        ac.signal,
+      );
       dispatch(sendFinished());
     } catch (e) {
-      dispatch(sendFailed(e instanceof Error ? e.message : 'Ukendt fejl.'));
+      if (!ac.signal.aborted) {
+        dispatch(sendFailed(e instanceof Error ? e.message : 'Ukendt fejl.'));
+      }
     }
   };
 
