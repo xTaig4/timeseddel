@@ -1,7 +1,7 @@
 import { desc } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,6 +16,7 @@ import {
   ferieYearStart,
   flexBalanceMinutes,
   vacationDaysEarned,
+  workedMinutes,
   type EntryType,
 } from '@/domain/accrual';
 import { useTheme } from '@/hooks/use-theme';
@@ -24,6 +25,7 @@ import {
   formatDays,
   formatFlex,
   formatShortDate,
+  isoWeek,
   localToday,
   parseHHMM,
   toHHMM,
@@ -36,6 +38,17 @@ const TYPE_LABELS: Record<EntryType, string> = {
   sick: 'Sygdom',
   holiday: 'Helligdag',
 };
+
+const WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+const MONTHS = [
+  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
+  'juli', 'august', 'september', 'oktober', 'november', 'december',
+];
+
+function danishToday(): string {
+  const now = new Date();
+  return `${WEEKDAYS[now.getDay()]} ${now.getDate()}. ${MONTHS[now.getMonth()]}`;
+}
 
 export default function TimerScreen() {
   const { data: rows } = useLiveQuery(
@@ -63,10 +76,13 @@ export default function TimerScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <>
-            <ThemedText type="subtitle" style={styles.heading}>
-              Timeseddel
-            </ThemedText>
-            <BalanceCard
+            <View style={styles.header}>
+              <ThemedText style={styles.screenTitle}>Timeseddel</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {danishToday()} · uge {isoWeek(localToday())}
+              </ThemedText>
+            </View>
+            <BalancePanel
               flex={flex}
               earned={earned}
               ferieUsed={ferieUsed}
@@ -79,54 +95,75 @@ export default function TimerScreen() {
             </ThemedText>
           </>
         }
-        ListEmptyComponent={
-          <ThemedText themeColor="textSecondary">Ingen registreringer endnu.</ThemedText>
-        }
-        renderItem={({ item }) => <EntryRow row={item} />}
+        ListEmptyComponent={<EmptyState />}
+        renderItem={({ item, index }) => (
+          <EntryRow row={item} isFirst={index === 0} isLast={index === (rows?.length ?? 0) - 1} />
+        )}
       />
     </ThemedView>
   );
 }
 
-function BalanceCard(props: {
+function BalancePanel(props: {
   flex: number;
   earned: number | null;
   ferieUsed: number;
   ffTotal: number;
   ffUsed: number;
 }) {
+  const theme = useTheme();
+  const flexColor = props.flex > 0 ? theme.positive : props.flex < 0 ? theme.negative : theme.text;
+
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <BalanceRow label="Flekssaldo" value={formatFlex(props.flex)} />
+    <ThemedView type="surface" style={[styles.panel, { borderColor: theme.border }]}>
+      <ThemedText type="small" themeColor="textSecondary">
+        Flekssaldo
+      </ThemedText>
+      <ThemedText style={[styles.flexFigure, { color: flexColor }]}>
+        {formatFlex(props.flex)}
+        <ThemedText style={styles.flexUnit} themeColor="textSecondary">
+          {'  '}timer
+        </ThemedText>
+      </ThemedText>
+
+      <View style={[styles.panelDivider, { backgroundColor: theme.border }]} />
+
       {props.earned == null ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Angiv ansættelsesdato under Indstillinger for at se ferieoptjening.
+          Angiv din ansættelsesdato under Indstillinger, så beregnes din ferieoptjening automatisk.
         </ThemedText>
       ) : (
-        <BalanceRow
-          label="Ferie (i år)"
-          value={`${formatDays(props.earned)} optjent · ${props.ferieUsed} brugt · ${formatDays(
-            Math.max(0, props.earned - props.ferieUsed),
-          )} tilbage`}
+        <StatRow
+          label="Ferie i år"
+          value={`${formatDays(Math.max(0, props.earned - props.ferieUsed))} dage tilbage`}
+          detail={`${formatDays(props.earned)} optjent · ${props.ferieUsed} brugt`}
         />
       )}
       {props.ffTotal > 0 && (
-        <BalanceRow
+        <StatRow
           label="Feriefridage"
-          value={`${formatDays(props.ffTotal)} · ${props.ffUsed} brugt`}
+          value={`${formatDays(Math.max(0, props.ffTotal - props.ffUsed))} tilbage`}
+          detail={`${formatDays(props.ffTotal)} pr. år · ${props.ffUsed} brugt`}
         />
       )}
     </ThemedView>
   );
 }
 
-function BalanceRow({ label, value }: { label: string; value: string }) {
+function StatRow({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <View style={styles.balanceRow}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
+    <View style={styles.statRow}>
+      <View style={styles.statLabels}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {label}
+        </ThemedText>
+        <ThemedText type="smallBold" style={styles.tabular}>
+          {value}
+        </ThemedText>
+      </View>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.tabular}>
+        {detail}
       </ThemedText>
-      <ThemedText type="smallBold">{value}</ThemedText>
     </View>
   );
 }
@@ -142,8 +179,19 @@ function EntryForm() {
 
   const inputStyle = [
     styles.input,
-    { color: theme.text, backgroundColor: theme.backgroundElement },
+    {
+      color: theme.text,
+      backgroundColor: theme.surface,
+      borderColor: theme.border,
+    },
   ];
+
+  const startMinutes = parseHHMM(start);
+  const endMinutes = parseHHMM(end);
+  const previewMinutes =
+    type === 'work' && startMinutes != null && endMinutes != null
+      ? workedMinutes(startMinutes, endMinutes, Number(breakMin) || 0)
+      : null;
 
   const save = async () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -151,14 +199,18 @@ function EntryForm() {
       return;
     }
     if (type === 'work') {
-      const startMinutes = parseHHMM(start);
-      const endMinutes = parseHHMM(end);
-      const breakMinutes = Number(breakMin) || 0;
       if (startMinutes == null || endMinutes == null) {
         Alert.alert('Ugyldigt tidspunkt', 'Brug formatet TT:MM, fx 08:00.');
         return;
       }
-      await repo.addEntry({ date, type, startMinutes, endMinutes, breakMinutes, note: note || null });
+      await repo.addEntry({
+        date,
+        type,
+        startMinutes,
+        endMinutes,
+        breakMinutes: Number(breakMin) || 0,
+        note: note || null,
+      });
     } else {
       await repo.addEntry({ date, type, note: note || null });
     }
@@ -167,134 +219,266 @@ function EntryForm() {
 
   return (
     <View style={styles.form}>
-      <View style={styles.typeRow}>
-        {(Object.keys(TYPE_LABELS) as EntryType[]).map((t) => (
-          <Pressable key={t} onPress={() => setType(t)}>
-            <ThemedView
-              type={type === t ? 'backgroundSelected' : 'backgroundElement'}
-              style={styles.typeChip}>
-              <ThemedText type="small" themeColor={type === t ? 'text' : 'textSecondary'}>
-                {TYPE_LABELS[t]}
-              </ThemedText>
-            </ThemedView>
-          </Pressable>
-        ))}
-      </View>
-      <TextInput
-        style={inputStyle}
-        value={date}
-        onChangeText={setDate}
-        placeholder="ÅÅÅÅ-MM-DD"
-        placeholderTextColor={theme.textSecondary}
-      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.typeScroll}
+        contentContainerStyle={styles.typeRow}>
+        {(Object.keys(TYPE_LABELS) as EntryType[]).map((t) => {
+          const selected = type === t;
+          return (
+            <Pressable key={t} onPress={() => setType(t)}>
+              <View
+                style={[
+                  styles.typeChip,
+                  {
+                    backgroundColor: selected ? theme.accentSoft : theme.backgroundElement,
+                    borderColor: selected ? theme.accent : 'transparent',
+                  },
+                ]}>
+                <ThemedText
+                  type="small"
+                  style={{ color: selected ? theme.accent : theme.textSecondary }}>
+                  {TYPE_LABELS[t]}
+                </ThemedText>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <Field label="Dato">
+        <TextInput
+          style={inputStyle}
+          value={date}
+          onChangeText={setDate}
+          placeholder="ÅÅÅÅ-MM-DD"
+          placeholderTextColor={theme.textSecondary}
+        />
+      </Field>
+
       {type === 'work' && (
         <View style={styles.timeRow}>
-          <TextInput
-            style={[...inputStyle, styles.timeInput]}
-            value={start}
-            onChangeText={setStart}
-            placeholder="Start"
-            placeholderTextColor={theme.textSecondary}
-          />
-          <TextInput
-            style={[...inputStyle, styles.timeInput]}
-            value={end}
-            onChangeText={setEnd}
-            placeholder="Slut"
-            placeholderTextColor={theme.textSecondary}
-          />
-          <TextInput
-            style={[...inputStyle, styles.timeInput]}
-            value={breakMin}
-            onChangeText={setBreakMin}
-            placeholder="Pause (min)"
-            placeholderTextColor={theme.textSecondary}
-            keyboardType="numeric"
-          />
+          <Field label="Start" style={styles.timeField}>
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={start}
+              onChangeText={setStart}
+              keyboardType="numbers-and-punctuation"
+              placeholder="08:00"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </Field>
+          <Field label="Slut" style={styles.timeField}>
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={end}
+              onChangeText={setEnd}
+              keyboardType="numbers-and-punctuation"
+              placeholder="16:00"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </Field>
+          <Field label="Pause, min" style={styles.timeField}>
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={breakMin}
+              onChangeText={setBreakMin}
+              keyboardType="numeric"
+              placeholder="30"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </Field>
         </View>
       )}
-      <TextInput
-        style={inputStyle}
-        value={note}
-        onChangeText={setNote}
-        placeholder="Note (valgfri)"
-        placeholderTextColor={theme.textSecondary}
-      />
-      <Pressable onPress={save}>
-        <ThemedView type="backgroundSelected" style={styles.saveButton}>
-          <ThemedText type="smallBold">Registrér</ThemedText>
-        </ThemedView>
+
+      <Field label="Note">
+        <TextInput
+          style={inputStyle}
+          value={note}
+          onChangeText={setNote}
+          placeholder="Valgfri"
+          placeholderTextColor={theme.textSecondary}
+        />
+      </Field>
+
+      <Pressable onPress={save} style={({ pressed }) => pressed && styles.pressed}>
+        <View style={[styles.saveButton, { backgroundColor: theme.accent }]}>
+          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+            {previewMinutes != null
+              ? `Registrér ${TYPE_LABELS[type].toLowerCase()} · ${formatFlex(previewMinutes).replace('+', '')} timer`
+              : `Registrér ${TYPE_LABELS[type].toLowerCase()}`}
+          </ThemedText>
+        </View>
       </Pressable>
     </View>
   );
 }
 
-function EntryRow({ row }: { row: WorkEntryRow }) {
-  const detail =
-    row.type === 'work' && row.startMinutes != null && row.endMinutes != null
-      ? `${toHHMM(row.startMinutes)}–${toHHMM(row.endMinutes)}${
-          row.breakMinutes ? ` (${row.breakMinutes} min pause)` : ''
-        }`
-      : TYPE_LABELS[row.type];
+function Field({
+  label,
+  style,
+  children,
+}: {
+  label: string;
+  style?: object;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.field, style]}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+      {children}
+    </View>
+  );
+}
+
+function EntryRow({ row, isFirst, isLast }: { row: WorkEntryRow; isFirst: boolean; isLast: boolean }) {
+  const theme = useTheme();
+  const isWork = row.type === 'work' && row.startMinutes != null && row.endMinutes != null;
+  const duration = isWork
+    ? formatFlex(workedMinutes(row.startMinutes!, row.endMinutes!, row.breakMinutes)).replace('+', '')
+    : null;
 
   const remove = () => {
-    Alert.alert('Slet registrering?', `${formatShortDate(row.date)} · ${detail}`, [
-      { text: 'Annullér', style: 'cancel' },
-      { text: 'Slet', style: 'destructive', onPress: () => repo.deleteEntry(row.id) },
-    ]);
+    Alert.alert(
+      'Slet registrering?',
+      `${formatShortDate(row.date)} · ${isWork ? `${toHHMM(row.startMinutes!)}–${toHHMM(row.endMinutes!)}` : TYPE_LABELS[row.type]}`,
+      [
+        { text: 'Annullér', style: 'cancel' },
+        { text: 'Slet registrering', style: 'destructive', onPress: () => repo.deleteEntry(row.id) },
+      ],
+    );
   };
 
   return (
-    <ThemedView type="backgroundElement" style={styles.entryRow}>
-      <ThemedText type="smallBold" style={styles.entryDate}>
-        {formatShortDate(row.date)}
-      </ThemedText>
-      <View style={styles.entryDetail}>
-        <ThemedText type="small">{row.type === 'work' ? detail : TYPE_LABELS[row.type]}</ThemedText>
-        {row.note ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            {row.note}
-          </ThemedText>
-        ) : null}
-      </View>
-      <Pressable onPress={remove} hitSlop={8}>
-        <ThemedText type="small" themeColor="textSecondary">
-          Slet
+    <Pressable onLongPress={remove} delayLongPress={350}>
+      <ThemedView
+        type="surface"
+        style={[
+          styles.entryRow,
+          { borderColor: theme.border },
+          isFirst && styles.entryRowFirst,
+          isLast && styles.entryRowLast,
+          !isLast && { borderBottomWidth: 0 },
+        ]}>
+        <ThemedText type="smallBold" style={[styles.entryDate, styles.tabular]}>
+          {formatShortDate(row.date)}
         </ThemedText>
-      </Pressable>
-    </ThemedView>
+        <View style={styles.entryDetail}>
+          <ThemedText type="small">
+            {isWork ? `${toHHMM(row.startMinutes!)}–${toHHMM(row.endMinutes!)}` : TYPE_LABELS[row.type]}
+            {isWork && row.breakMinutes ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {'  '}· {row.breakMinutes} min pause
+              </ThemedText>
+            ) : null}
+          </ThemedText>
+          {row.note ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {row.note}
+            </ThemedText>
+          ) : null}
+        </View>
+        {duration ? (
+          <ThemedText type="smallBold" style={styles.tabular}>
+            {duration}
+          </ThemedText>
+        ) : (
+          <View
+            style={[
+              styles.typeDot,
+              { backgroundColor: row.type === 'vacation' || row.type === 'feriefridag' ? theme.accent : theme.textSecondary },
+            ]}
+          />
+        )}
+      </ThemedView>
+    </Pressable>
+  );
+}
+
+function EmptyState() {
+  return (
+    <View style={styles.empty}>
+      <ThemedText type="small" themeColor="textSecondary">
+        Ingen registreringer endnu. Log din første arbejdsdag ovenfor — det tager et kvart minut.
+      </ThemedText>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  list: { padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.six, gap: Spacing.two },
-  heading: { marginTop: Spacing.five, marginBottom: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  balanceRow: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },
-  form: { gap: Spacing.two, marginTop: Spacing.three },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  typeChip: {
+  list: { padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.six },
+  header: { marginTop: Spacing.five, marginBottom: Spacing.three, gap: 2 },
+  screenTitle: { fontSize: 22, lineHeight: 28, fontWeight: '700' },
+  panel: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  flexFigure: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  flexUnit: { fontSize: 14, fontWeight: '500' },
+  panelDivider: { height: 1, marginVertical: Spacing.two },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
     paddingVertical: Spacing.one,
+  },
+  statLabels: { gap: 2 },
+  tabular: { fontVariant: ['tabular-nums'] },
+  form: { gap: Spacing.two, marginTop: Spacing.four },
+  typeScroll: { marginHorizontal: -Spacing.three },
+  typeRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    marginBottom: Spacing.one,
   },
-  input: { borderRadius: Spacing.two, padding: Spacing.two + 2, fontSize: 14 },
+  typeChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  field: { gap: 4 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+  },
   timeRow: { flexDirection: 'row', gap: Spacing.two },
-  timeInput: { flex: 1 },
+  timeField: { flex: 1 },
   saveButton: {
-    borderRadius: Spacing.two,
-    padding: Spacing.two + 2,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
+    marginTop: Spacing.one,
   },
-  listHeading: { marginTop: Spacing.three },
+  pressed: { opacity: 0.85 },
+  listHeading: { marginTop: Spacing.five, marginBottom: Spacing.two },
   entryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderRadius: Spacing.two,
-    padding: Spacing.two + 2,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.three,
   },
-  entryDate: { width: 48 },
+  entryRowFirst: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  entryRowLast: { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  entryDate: { width: 44 },
   entryDetail: { flex: 1, gap: 2 },
+  typeDot: { width: 8, height: 8, borderRadius: 4 },
+  empty: { paddingVertical: Spacing.four },
 });

@@ -4,7 +4,13 @@ Offline-first work-hours & holiday tracker for Danish workers — log hours (man
 
 > **Status: in active development.** Built as a portfolio piece in a deliberately chosen production stack: React Native, Expo, TypeScript, Redux Toolkit, offline SQLite, Sentry.
 
-<!-- TODO: screenshots / demo GIF here (Phase 2) -->
+<table>
+  <tr>
+    <td><img src="docs/screenshots/timer-light.png" alt="Timer screen: flex balance, ferie accrual, quick log form and entry list" width="260"></td>
+    <td><img src="docs/screenshots/indstillinger-light.png" alt="Settings screen: weekly norm, employment date, feriefridage" width="260"></td>
+    <td><img src="docs/screenshots/timer-dark.png" alt="Timer screen in dark mode" width="260"></td>
+  </tr>
+</table>
 
 ## Why this app
 
@@ -45,7 +51,7 @@ Key decisions:
 
 - [x] Phase 0 — Scaffold: Expo SDK 57 + TypeScript, Sentry wiring, EAS build profiles
 - [x] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
-- [ ] Phase 2 — UI polish: Danish UI, design pass, screenshots
+- [x] Phase 2 — UI polish: Danish UI, design pass, screenshots
 - [ ] Phase 3 — Device build: EAS preview APK, verify Sentry catches a real on-device crash
 - [ ] Phase 4 — AI Q&A: Danish workplace-rights assistant via Mistral edge proxy
 - [ ] Phase 5 — Voice logging: on-device speech recognition

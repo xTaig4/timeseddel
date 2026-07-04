@@ -37,3 +37,15 @@ export function formatDays(days: number): string {
 export function formatShortDate(date: string): string {
   return `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 }
+
+/** ISO 8601-ugenummer (uger starter mandag; uge 1 indeholder årets første torsdag). */
+export function isoWeek(date: string): number {
+  const [y, m, d] = date.split('-').map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  const dayNum = (day.getUTCDay() + 6) % 7; // mandag = 0
+  day.setUTCDate(day.getUTCDate() - dayNum + 3); // torsdag i samme uge
+  const firstThursday = new Date(Date.UTC(day.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return 1 + Math.round((day.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
+}

@@ -14,9 +14,9 @@ export default function SettingsScreen() {
   if (settings.status !== 'ready') return <ThemedView style={styles.screen} />;
   return (
     <SettingsForm
-      initialNormHours={String(settings.weeklyNormMinutes / 60)}
+      initialNormHours={String(settings.weeklyNormMinutes / 60).replace('.', ',')}
       initialEmploymentStart={settings.employmentStart ?? ''}
-      initialFeriefridage={String(settings.feriefridageDays)}
+      initialFeriefridage={String(settings.feriefridageDays).replace('.', ',')}
     />
   );
 }
@@ -34,7 +34,10 @@ function SettingsForm(props: {
   const [feriefridage, setFeriefridage] = useState(props.initialFeriefridage);
   const [saved, setSaved] = useState(false);
 
-  const inputStyle = [styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }];
+  const inputStyle = [
+    styles.input,
+    { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border },
+  ];
 
   const save = async () => {
     const hours = Number(normHours.replace(',', '.'));
@@ -65,58 +68,80 @@ function SettingsForm(props: {
   return (
     <ThemedView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText type="subtitle" style={styles.heading}>
-          Indstillinger
-        </ThemedText>
+        <View style={styles.header}>
+          <ThemedText style={styles.screenTitle}>Indstillinger</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Grundlaget for dine saldi
+          </ThemedText>
+        </View>
 
-        <Field label="Ugenorm (timer)" hint="Din kontraktlige arbejdstid pr. uge — typisk 37.">
-          <TextInput
-            style={inputStyle}
-            value={normHours}
-            onChangeText={setNormHours}
-            keyboardType="numeric"
-          />
-        </Field>
+        <ThemedView type="surface" style={[styles.panel, { borderColor: theme.border }]}>
+          <Field
+            label="Ugenorm, timer"
+            hint="Din kontraktlige arbejdstid pr. uge — typisk 37. Flekssaldoen måles mod norm/5 pr. hverdag.">
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={normHours}
+              onChangeText={setNormHours}
+              keyboardType="numeric"
+            />
+          </Field>
 
-        <Field
-          label="Ansættelsesdato"
-          hint="Bruges til ferieoptjening (2,08 dage pr. måned, ferieloven).">
-          <TextInput
-            style={inputStyle}
-            value={employmentStart}
-            onChangeText={setEmploymentStart}
-            placeholder="ÅÅÅÅ-MM-DD"
-            placeholderTextColor={theme.textSecondary}
-          />
-        </Field>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-        <Field
-          label="Feriefridage pr. år"
-          hint="Ikke lovbestemt — antallet afhænger af din overenskomst (typisk 5, tildeles 1/9).">
-          <TextInput
-            style={inputStyle}
-            value={feriefridage}
-            onChangeText={setFeriefridage}
-            keyboardType="numeric"
-          />
-        </Field>
+          <Field
+            label="Ansættelsesdato"
+            hint="Bruges til ferieoptjening: 2,08 dage pr. måned efter ferieloven.">
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={employmentStart}
+              onChangeText={setEmploymentStart}
+              placeholder="ÅÅÅÅ-MM-DD"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </Field>
 
-        <Pressable onPress={save}>
-          <ThemedView type="backgroundSelected" style={styles.saveButton}>
-            <ThemedText type="smallBold">{saved ? 'Gemt ✓' : 'Gem'}</ThemedText>
-          </ThemedView>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <Field
+            label="Feriefridage pr. år"
+            hint="Ikke lovbestemte — antallet afhænger af din overenskomst (typisk 5, tildeles 1. september).">
+            <TextInput
+              style={[...inputStyle, styles.tabular]}
+              value={feriefridage}
+              onChangeText={setFeriefridage}
+              keyboardType="numeric"
+            />
+          </Field>
+        </ThemedView>
+
+        <Pressable onPress={save} style={({ pressed }) => pressed && styles.pressed}>
+          <View style={[styles.saveButton, { backgroundColor: theme.accent }]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+              {saved ? 'Indstillinger gemt' : 'Gem indstillinger'}
+            </ThemedText>
+          </View>
         </Pressable>
 
         <ThemedText type="small" themeColor="textSecondary" style={styles.disclaimer}>
-          Flekssaldoen er vejledende: overarbejdsregler (sats og afspadsering) er ikke lovbestemte,
-          men følger af din overenskomst eller kontrakt.
+          Flekssaldoen er vejledende. Regler for overarbejde — sats og afspadsering — er ikke
+          lovbestemte, men følger af din overenskomst eller kontrakt. Alle data bliver på din
+          telefon.
         </ThemedText>
       </ScrollView>
     </ThemedView>
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.field}>
       <ThemedText type="smallBold">{label}</ThemedText>
@@ -130,10 +155,25 @@ function Field({ label, hint, children }: { label: string; hint: string; childre
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: Spacing.three, paddingBottom: BottomTabInset + Spacing.six, gap: Spacing.three },
-  heading: { marginTop: Spacing.five },
-  field: { gap: Spacing.one },
-  input: { borderRadius: Spacing.two, padding: Spacing.two + 2, fontSize: 14 },
-  saveButton: { borderRadius: Spacing.two, padding: Spacing.two + 2, alignItems: 'center' },
-  disclaimer: { marginTop: Spacing.two },
+  content: {
+    padding: Spacing.three,
+    paddingBottom: BottomTabInset + Spacing.six,
+    gap: Spacing.three,
+  },
+  header: { marginTop: Spacing.five, gap: 2 },
+  screenTitle: { fontSize: 22, lineHeight: 28, fontWeight: '700' },
+  panel: { borderRadius: 12, borderWidth: 1, padding: Spacing.three },
+  field: { gap: 6 },
+  divider: { height: 1, marginVertical: Spacing.three },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+  },
+  tabular: { fontVariant: ['tabular-nums'] },
+  saveButton: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  pressed: { opacity: 0.85 },
+  disclaimer: { paddingHorizontal: Spacing.one },
 });
