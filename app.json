@@ -33,12 +33,26 @@
           "imageWidth": 76
         }
       ],
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "tai-17",
+          "project": "timeseddel"
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6a8992f0-aab2-4cb4-b48a-b243c39ba44d"
+      }
+    },
+    "owner": "taig4"
   }
 }
