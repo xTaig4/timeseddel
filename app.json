@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.taig4.timeseddel",
       "adaptiveIcon": {
         "backgroundColor": "#E3EBF6",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
