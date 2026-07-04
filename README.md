@@ -52,7 +52,7 @@ Key decisions:
 - [x] Phase 0 — Scaffold: Expo SDK 57 + TypeScript, Sentry wiring, EAS build profiles
 - [x] Phase 1 — Hours model: Drizzle/expo-sqlite CRUD, RTK store, unit tests on ferie/overtime accrual logic
 - [x] Phase 2 — UI polish: Danish UI, design pass, screenshots
-- [ ] Phase 3 — Device build: EAS preview APK, verify Sentry catches a real on-device crash
+- [x] Phase 3 — Device build: EAS preview APK, verified Sentry catches a real on-device crash with a source-mapped stack trace (exact file + line)
 - [ ] Phase 4 — AI Q&A: Danish workplace-rights assistant via Mistral edge proxy
 - [ ] Phase 5 — Voice logging: on-device speech recognition
 
