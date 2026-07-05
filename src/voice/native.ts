@@ -25,6 +25,7 @@ export type VoiceSubscription = { remove(): void };
 
 let cached: SpeechModule | null = null;
 let attempted = false;
+let loadError: string | null = null;
 
 /** Indlæs modulet én gang; returnér null hvis det ikke findes (Expo Go). */
 function load(): SpeechModule | null {
@@ -36,8 +37,10 @@ function load(): SpeechModule | null {
       ExpoSpeechRecognitionModule: SpeechModule;
     };
     cached = mod.ExpoSpeechRecognitionModule ?? null;
-  } catch {
+  } catch (e) {
     // Native modul mangler (Expo Go / web) — stemme er simpelthen utilgængelig.
+    // Beskeden gemmes til diagnostik: importen kan også fejle af andre grunde.
+    loadError = e instanceof Error ? e.message : String(e);
     cached = null;
   }
   return cached;
@@ -60,7 +63,7 @@ export function getSpeechModule(): SpeechModule | null {
  */
 export function voiceProbe(): string {
   const mod = load();
-  if (!mod) return 'modul: mangler (Expo Go/web)';
+  if (!mod) return loadError ? `modul: import fejlede — ${loadError}` : 'modul: mangler (Expo Go/web)';
   const parts: string[] = ['modul: ok'];
   try {
     parts.push(`isRecognitionAvailable: ${String(mod.isRecognitionAvailable())}`);

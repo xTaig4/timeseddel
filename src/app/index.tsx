@@ -335,6 +335,7 @@ function EntryForm() {
       <View style={styles.actionRow}>
         <Pressable
           onPress={save}
+          onLongPress={() => setVoiceHint(voiceProbe())} // diagnostik — virker også når mik-knappen er skjult
           style={({ pressed }) => [styles.saveFlex, pressed && styles.pressed]}>
           <View style={[styles.saveButton, { backgroundColor: theme.accent }]}>
             <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
