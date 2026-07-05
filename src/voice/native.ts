@@ -54,6 +54,33 @@ export function getSpeechModule(): SpeechModule | null {
 }
 
 /**
+ * Rå diagnostik af talegenkendelsen — vises ved langt tryk på mikrofonknappen.
+ * Platformens forhåndstjek kan lyve i begge retninger (OEM-afhængigt), så vi
+ * gater ikke UI'et på dem; men de er uvurderlige til fejlsøgning på en enhed.
+ */
+export function voiceProbe(): string {
+  const mod = load();
+  if (!mod) return 'modul: mangler (Expo Go/web)';
+  const parts: string[] = ['modul: ok'];
+  try {
+    parts.push(`isRecognitionAvailable: ${String(mod.isRecognitionAvailable())}`);
+  } catch (e) {
+    parts.push(`isRecognitionAvailable: kastede (${e instanceof Error ? e.message : e})`);
+  }
+  try {
+    parts.push(`services: ${JSON.stringify(mod.getSpeechRecognitionServices())}`);
+  } catch (e) {
+    parts.push(`services: kastede (${e instanceof Error ? e.message : e})`);
+  }
+  try {
+    parts.push(`onDevice: ${String(mod.supportsOnDeviceRecognition())}`);
+  } catch {
+    parts.push('onDevice: kastede');
+  }
+  return parts.join(' · ');
+}
+
+/**
  * Abonnér på en native talegenkendelseshændelse. Returnerer et no-op-abonnement,
  * hvis modulet mangler, så kaldere aldrig skal gætte på tilgængelighed.
  */

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 
 import {
   addSpeechListener,
@@ -38,23 +37,15 @@ function mapError(code: ExpoSpeechRecognitionErrorEvent['error']): string {
   }
 }
 
-/** Beregn starttilstand ud fra modulets tilgængelighed (kun ved første render). */
+/**
+ * Beregn starttilstand (kun ved første render). Vi gater KUN på om det native
+ * modul findes (Expo Go/web → skjult). Platformens forhåndstjek
+ * (isRecognitionAvailable, getSpeechRecognitionServices) er bevidst udeladt:
+ * de er OEM-afhængige og kan melde falsk negativt — fejl ved faktisk brug
+ * fanges alligevel af error-hændelsen og vises på dansk.
+ */
 function computeInitialStatus(): VoiceStatus {
-  if (!voiceModuleAvailable()) return 'unavailable';
-  const mod = getSpeechModule();
-  if (!mod) return 'unavailable';
-  try {
-    // isRecognitionAvailable() kan kaste (issue #60) — vær defensiv.
-    if (mod.isRecognitionAvailable() === false) return 'unavailable';
-    // På Android: ingen installerede genkendelsestjenester → utilgængelig.
-    if (Platform.OS === 'android') {
-      const services = mod.getSpeechRecognitionServices();
-      if (Array.isArray(services) && services.length === 0) return 'unavailable';
-    }
-  } catch {
-    return 'unavailable';
-  }
-  return 'idle';
+  return voiceModuleAvailable() ? 'idle' : 'unavailable';
 }
 
 /**

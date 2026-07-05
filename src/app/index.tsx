@@ -20,6 +20,7 @@ import {
   type EntryType,
 } from '@/domain/accrual';
 import { parseVoiceCommand } from '@/domain/voiceParse';
+import { voiceProbe } from '@/voice/native';
 import { useTheme } from '@/hooks/use-theme';
 import { useVoiceInput } from '@/hooks/use-voice-input';
 import { useAppSelector } from '@/store/hooks';
@@ -347,6 +348,7 @@ function EntryForm() {
         {voice.status !== 'unavailable' && (
           <Pressable
             onPress={voiceActive ? voice.stop : voice.start}
+            onLongPress={() => setVoiceHint(voiceProbe())} // skjult diagnostik til fejlsøgning på enhed
             accessibilityLabel={voiceActive ? 'Stop talegenkendelse' : 'Registrér med stemmen'}
             style={({ pressed }) => pressed && styles.pressed}>
             <View
