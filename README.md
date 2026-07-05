@@ -25,7 +25,7 @@ Work hours, holiday accrual, and workplace rights are things every Danish employ
 | Language | TypeScript (strict) |
 | State | Redux Toolkit + react-redux |
 | Storage | expo-sqlite + Drizzle ORM (offline source of truth) |
-| Voice input | expo-speech-recognition (on-device STT) |
+| Voice input | Danish command parser + push-to-talk hook (dormant — see roadmap) |
 | AI Q&A | Mistral (EU data residency) via server-side edge proxy |
 | Error reporting | Sentry (@sentry/react-native) |
 | Build & distribution | EAS Build — installable Android APK |
@@ -55,7 +55,7 @@ Key decisions:
 - [x] Phase 2 — UI polish: Danish UI, design pass, screenshots
 - [x] Phase 3 — Device build: EAS preview APK, verified Sentry catches a real on-device crash with a source-mapped stack trace (exact file + line)
 - [x] Phase 4 — AI Q&A: Danish workplace-rights assistant, SSE-streamed through a Supabase edge proxy (server-held Mistral key, per-device daily rate limit, on-topic guardrails)
-- [ ] Phase 5 — Voice logging: on-device speech recognition
+- [~] Phase 5 — Voice logging: **implemented but dormant.** The Danish command parser (`src/domain/voiceParse.ts`, 28 tests — "arbejde fra 8 til 16 med 30 minutters pause" → prefilled entry), push-to-talk hook and UI are all in place behind a native-safe wrapper. The `expo-speech-recognition` dependency itself is removed for now: its newest release (56.0.1) targets Expo SDK 56, and against this app's SDK 57 its native module segfaults at startup (SIGSEGV in `jsi::Value::~Value`, reproduced in two EAS builds). The wrapper reports voice as unavailable until a SDK 57 release ships — reinstall the package and restore the config plugin, and the feature lights up unchanged.
 
 ## Why no store listing?
 

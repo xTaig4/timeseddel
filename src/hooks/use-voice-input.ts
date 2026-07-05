@@ -4,7 +4,7 @@ import {
   addSpeechListener,
   getSpeechModule,
   voiceModuleAvailable,
-  type ExpoSpeechRecognitionErrorEvent,
+  type VoiceErrorEvent,
   type VoiceSubscription,
 } from '@/voice/native';
 
@@ -20,7 +20,7 @@ export interface UseVoiceInput {
 }
 
 /** Oversæt native fejlkoder til korte danske beskeder. Tom streng = ingen fejl. */
-function mapError(code: ExpoSpeechRecognitionErrorEvent['error']): string {
+function mapError(code: VoiceErrorEvent['error']): string {
   switch (code) {
     case 'no-speech':
     case 'speech-timeout':
