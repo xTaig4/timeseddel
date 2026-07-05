@@ -19,7 +19,9 @@ import {
   workedMinutes,
   type EntryType,
 } from '@/domain/accrual';
+import { parseVoiceCommand } from '@/domain/voiceParse';
 import { useTheme } from '@/hooks/use-theme';
+import { useVoiceInput } from '@/hooks/use-voice-input';
 import { useAppSelector } from '@/store/hooks';
 import {
   formatDays,
@@ -48,6 +50,14 @@ const MONTHS = [
 function danishToday(): string {
   const now = new Date();
   return `${WEEKDAYS[now.getDay()]} ${now.getDate()}. ${MONTHS[now.getMonth()]}`;
+}
+
+/** Dagens dato forskudt med et antal dage, som YYYY-MM-DD i lokal tid. */
+function dateWithOffset(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export default function TimerScreen() {
@@ -176,6 +186,25 @@ function EntryForm() {
   const [end, setEnd] = useState('16:00');
   const [breakMin, setBreakMin] = useState('30');
   const [note, setNote] = useState('');
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
+
+  // Stemmekommando → udfyld formularen (aldrig auto-gem; brugeren trykker selv gem).
+  const voice = useVoiceInput((finalTranscript) => {
+    const cmd = parseVoiceCommand(finalTranscript);
+    if (!cmd.matched) {
+      setVoiceHint('Forstod ikke kommandoen. Prøv fx: "arbejde fra 8 til 16 med 30 minutters pause".');
+      return;
+    }
+    setVoiceHint(null);
+    if (cmd.type) setType(cmd.type);
+    if (cmd.startMin != null) setStart(toHHMM(cmd.startMin));
+    if (cmd.endMin != null) setEnd(toHHMM(cmd.endMin));
+    if (cmd.breakMin != null) setBreakMin(String(cmd.breakMin));
+    if (cmd.dayOffset != null && cmd.dayOffset !== 0) setDate(dateWithOffset(cmd.dayOffset));
+  });
+
+  const voiceActive =
+    voice.status === 'starting' || voice.status === 'listening' || voice.status === 'processing';
 
   const inputStyle = [
     styles.input,
@@ -302,15 +331,58 @@ function EntryForm() {
         />
       </Field>
 
-      <Pressable onPress={save} style={({ pressed }) => pressed && styles.pressed}>
-        <View style={[styles.saveButton, { backgroundColor: theme.accent }]}>
-          <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-            {previewMinutes != null
-              ? `Registrér ${TYPE_LABELS[type].toLowerCase()} · ${formatFlex(previewMinutes).replace('+', '')} timer`
-              : `Registrér ${TYPE_LABELS[type].toLowerCase()}`}
+      <View style={styles.actionRow}>
+        <Pressable
+          onPress={save}
+          style={({ pressed }) => [styles.saveFlex, pressed && styles.pressed]}>
+          <View style={[styles.saveButton, { backgroundColor: theme.accent }]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+              {previewMinutes != null
+                ? `Registrér ${TYPE_LABELS[type].toLowerCase()} · ${formatFlex(previewMinutes).replace('+', '')} timer`
+                : `Registrér ${TYPE_LABELS[type].toLowerCase()}`}
+            </ThemedText>
+          </View>
+        </Pressable>
+
+        {voice.status !== 'unavailable' && (
+          <Pressable
+            onPress={voiceActive ? voice.stop : voice.start}
+            accessibilityLabel={voiceActive ? 'Stop talegenkendelse' : 'Registrér med stemmen'}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <View
+              style={[
+                styles.micButton,
+                {
+                  backgroundColor: voiceActive ? theme.accent : theme.accentSoft,
+                  borderColor: theme.accent,
+                },
+              ]}>
+              <ThemedText style={{ color: voiceActive ? theme.onAccent : theme.accent }}>
+                {voiceActive ? '■' : '🎤'}
+              </ThemedText>
+            </View>
+          </Pressable>
+        )}
+      </View>
+
+      {voiceActive && (
+        <View style={styles.voiceStatus}>
+          <ThemedText type="small" style={{ color: theme.accent }}>
+            Lytter …
           </ThemedText>
+          {voice.transcript ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+              {voice.transcript}
+            </ThemedText>
+          ) : null}
         </View>
-      </Pressable>
+      )}
+
+      {!voiceActive && (voiceHint || voice.error) ? (
+        <ThemedText type="small" style={[styles.voiceStatus, { color: theme.negative }]}>
+          {voiceHint ?? voice.error}
+        </ThemedText>
+      ) : null}
     </View>
   );
 }
@@ -459,12 +531,27 @@ const styles = StyleSheet.create({
   },
   timeRow: { flexDirection: 'row', gap: Spacing.two },
   timeField: { flex: 1 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  saveFlex: { flex: 1 },
   saveButton: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: Spacing.one,
   },
+  micButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceStatus: { gap: 2, paddingHorizontal: Spacing.half },
   pressed: { opacity: 0.85 },
   listHeading: { marginTop: Spacing.five, marginBottom: Spacing.two },
   entryRow: {

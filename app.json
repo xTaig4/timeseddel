@@ -42,7 +42,15 @@
           "project": "timeseddel"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Timeseddel bruger mikrofonen til at registrere timer med stemmen.",
+          "speechRecognitionPermission": "Timeseddel bruger talegenkendelse til at registrere timer med stemmen.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox", "com.google.android.tts"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
